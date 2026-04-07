@@ -1,0 +1,26 @@
+from pathlib import Path
+from typing import Dict
+class DirectoryCrawler:
+    """Crawls directories and extracts from files."""
+    Supported_Extensions = {'.txt', '.py', '.md','.csv','.json', '.html'}
+    def __init__(self, root_directory: str):
+        self.root_directory=Path(root_directory)
+        self.documents: Dict[str, str]={}
+    def crawl(self)->Dict[str, str]:
+        """Crawl directory and read all supported text files"""
+        if not self.root_directory.exists():
+            raise ValueError(f"Directory {self.root_directory}does not exist")
+        for file_path in self.root_directory.rglob('*'):
+            if file_path.is_file() and file_path.suffix in self.Supported_Extensions:
+                try:
+                    content = self._read_file(file_path)
+                    self.documents[str(file_path)]=content
+                    print(f"Crawled {file_path}")
+                except:
+                    print(f"Error reading {file_path}")
+        print(f"\nTotal documents crawled: {len(self.documents)}")
+        return self.documents
+    def _read_file(self, file_path: Path):
+        """Read file content with UTF-8 encoding"""
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            return f.read()
