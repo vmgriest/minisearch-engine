@@ -1,14 +1,16 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 from core import DirectoryCrawler, Tokenizer, InvertedIndex
-from typing import List, Tuple
+from .query_processor import QueryProcessor
 
 class SearchEngine:
     """Complete search engine integrating all components"""
-    
+
     def __init__(self, stop_words: set = None):
         self.tokenizer = Tokenizer(stop_words=stop_words)
         self.index = InvertedIndex()
         self.crawler = None
+        self.query_processor = QueryProcessor()
+        self.query_processor.tokenizer = self.tokenizer
 
     def index_directory(self, directory_path: str):
         """Crawl and index all documents in a directory"""
@@ -21,7 +23,7 @@ class SearchEngine:
         print("\nBuilding inverted index...")
         for doc_id, content in documents.items():
             tokens = self.tokenizer.tokenize(content)
-            self.index.add_document(doc_id, tokens)
+            self.index.add_document(doc_id, tokens, original_content=content)
 
         print("\n" + "-" * 50)
         stats = self.index.stats()
@@ -31,27 +33,40 @@ class SearchEngine:
         print(f"  - Total term occurrences: {stats['total_term_occurrences']}")
         print("=" * 50 + "\n")
 
-    def search(self, query: str, top_k: int = 10) -> List[Tuple[str, float, str]]:
-        """Search for documents matching the query"""
-        query_tokens = self.tokenizer.tokenize(query)
+    def search(self, query: str, use_ranking: bool = True) -> List[Dict]:
+        """
+        Main search method supporting AND/OR and phrases.
+        """
+        # Parse the query
+        parsed_query = self.query_processor.parse_query(query)
+        print(f"  [Debug] Parsed query: {parsed_query}")
 
-        if not query_tokens:
-            print("No valid search terms found (stop words removed)")
+        # Get document IDs from index
+        if parsed_query is None:
+            print("  [Debug] Query parsing returned None")
             return []
 
-        print(f"Searching for: '{query}'")
-        print(f"Query tokens: {query_tokens}")
-        print("-" * 50)
+        doc_ids = self.query_processor.evaluate_query(
+            parsed_query,
+            self.index.index  # Access the index dictionary
+        )
+        print(f"  [Debug] Found {len(doc_ids)} documents: {list(doc_ids)[:5]}{'...' if len(doc_ids) > 5 else ''}")
 
-        results = self.index.search(query_tokens)
+        # Build results list
+        results = []
+        for doc_id in doc_ids:
+            score = 1.0  # Basic score, can be enhanced with TF-IDF
+            # Get snippet from original content if available
+            snippet = ""
+            if hasattr(self.index, 'original_content') and doc_id in self.index.original_content:
+                content = self.index.original_content[doc_id]
+                snippet = content[:150].replace('\n', ' ') + "..." if len(content) > 150 else content
+            else:
+                snippet = f"Document: {doc_id}"
+            results.append((doc_id, score, snippet))
 
-        formatted_results = []
-        for doc_id, score in results[:top_k]:
-            snippet = self.index.get_document_snippet(doc_id, query_tokens)
-            formatted_results.append((doc_id, score, snippet))
-        
-        return formatted_results
-
+        return results
+    
     def display_results(self, results: List[Tuple[str, float, str]]):
         """Display search results in a readable format"""
         if not results:
@@ -64,3 +79,16 @@ class SearchEngine:
             print(f"   Score: {score:.4f}")
             print(f"   Snippet: {snippet}")
             print()
+
+    def get_suggestions(self, partial_term: str, limit: int = 5) -> List[str]:
+        """Get term suggestions for auto-complete"""
+        suggestions = []
+        partial_lower = partial_term.lower()
+
+        for term in getattr(self.index, 'index', {}).keys():
+            if term.lower().startswith(partial_lower):
+                suggestions.append(term)
+                if len(suggestions) >= limit:
+                    break
+
+        return suggestions

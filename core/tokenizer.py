@@ -39,3 +39,13 @@ class Tokenizer:
     def tokenize_unique(self, text: str)->Set[str]:
         """Return unique tokens as a set"""
         return set(self.tokenize(text))
+    
+    # Add this method to your existing Tokenizer class:
+
+def tokenize_with_positions(self, text: str) -> List[str]:
+    """
+    Tokenize text and return list preserving order/positions.
+    Reuse your existing tokenize() logic.
+    """
+    # Call your existing tokenize method
+    return self.tokenize(text)  # Assuming your tokenize method returns a list

@@ -24,3 +24,16 @@ class DirectoryCrawler:
         """Read file content with UTF-8 encoding"""
         with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
             return f.read()
+        
+    def build_index_with_pos(self, tokenizer, inverted_index):
+        """Build Index withe position tracking for phrase search."""
+        for file_path, content in self.documents.items():
+            #tokenize with position
+            tokens=tokenizer.tokenize_with_position(content)
+            
+            #add each token with its position
+            for position, token in enumerate(tokens):
+                inverted_index.add_term_with_position(token, str(file_path), position)
+            
+            #store document metadata
+            inverted_index.add_document_metadata(str(file_path),str(file_path), len(tokens))
