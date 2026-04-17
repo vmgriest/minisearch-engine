@@ -1,6 +1,7 @@
 from typing import List, Tuple, Dict
 from core import DirectoryCrawler, Tokenizer, InvertedIndex
 from .query_processor import QueryProcessor
+from .ranker import Ranker
 
 class SearchEngine:
     """Complete search engine integrating all components"""
@@ -11,6 +12,7 @@ class SearchEngine:
         self.crawler = None
         self.query_processor = QueryProcessor()
         self.query_processor.tokenizer = self.tokenizer
+        self.ranker = Ranker()
 
     def index_directory(self, directory_path: str):
         """Crawl and index all documents in a directory"""
@@ -52,11 +54,13 @@ class SearchEngine:
         )
         print(f"  [Debug] Found {len(doc_ids)} documents: {list(doc_ids)[:5]}{'...' if len(doc_ids) > 5 else ''}")
 
+        # Rank matching documents
+        query_tokens = self.tokenizer.tokenize(query)
+        ranked = self.ranker.rank(doc_ids, query_tokens, self.index.index, self.index.doc_lengths)
+
         # Build results list
         results = []
-        for doc_id in doc_ids:
-            score = 1.0  # Basic score, can be enhanced with TF-IDF
-            # Get snippet from original content if available
+        for doc_id, score in ranked:
             snippet = ""
             if hasattr(self.index, 'original_content') and doc_id in self.index.original_content:
                 content = self.index.original_content[doc_id]

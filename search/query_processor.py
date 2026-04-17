@@ -82,7 +82,7 @@ class QueryProcessor:
         if parsed is None:
             return None
         if parsed['type'] == 'term' and parsed['value'].startswith("__Phrase_"):
-            idx= int(parsed['value'].split('_')[2])
+            idx= int(parsed['value'].split('_')[3])
             phrase = phrases[idx]
             tokens = self.tokenizer.tokenize(phrase) # use your existing tokenizer
             return{'type':'phrase', 'terms': tokens}
